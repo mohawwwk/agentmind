@@ -1,0 +1,22 @@
+services:
+  agentmind:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: agentmind:latest
+    container_name: agentmind
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - FRONTEND_DIST=/app/artifacts/agent-ui/dist/public
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
