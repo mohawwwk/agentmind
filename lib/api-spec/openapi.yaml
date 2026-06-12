@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Agentic assistant API with multi-input processing
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: agent
+    description: Agentic operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /agent/chat:
+    post:
+      operationId: agentChat
+      tags: [agent]
+      summary: Submit a multi-modal query to the agent
+      description: Accepts text + files (images, PDFs, audio), runs the agentic pipeline, and returns structured output with plan trace and answer.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/AgentChatInput"
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +68,99 @@ components:
       required:
         - status
 
+    AgentChatInput:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The user's text query
+        conversationId:
+          type: ["string", "null"]
+          description: Optional conversation ID for context continuity
+      required:
+        - message
+
+    ExtractedContent:
+      type: object
+      properties:
+        filename:
+          type: string
+        fileType:
+          type: string
+          enum: [image, pdf, audio, text]
+        text:
+          type: string
+          description: Extracted/transcribed text content
+        confidence:
+          type: ["number", "null"]
+          description: OCR/transcription confidence (0-1)
+        duration:
+          type: ["number", "null"]
+          description: Audio duration in seconds (audio files only)
+      required:
+        - filename
+        - fileType
+        - text
+
+    PlanStep:
+      type: object
+      properties:
+        step:
+          type: integer
+        tool:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, done, error]
+        output:
+          type: ["string", "null"]
+      required:
+        - step
+        - tool
+        - description
+        - status
+
+    ChatResult:
+      type: object
+      properties:
+        conversationId:
+          type: string
+        extracted:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedContent"
+        plan:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanStep"
+        answer:
+          type: string
+          description: The agent's final text answer
+        followUpQuestion:
+          type: ["string", "null"]
+          description: If the agent needs clarification, this is set instead of answer
+        needsClarification:
+          type: boolean
+          description: True if the agent is asking a follow-up question
+        tokenCount:
+          type: ["integer", "null"]
+          description: Approximate tokens used (for cost estimation)
+        estimatedCostUsd:
+          type: ["number", "null"]
+          description: Estimated API cost in USD
+      required:
+        - conversationId
+        - extracted
+        - plan
+        - answer
+        - needsClarification
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

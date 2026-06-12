@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Agentic Assistant"
+version = "1.0.0"
+id = "artifacts/agent-ui"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21419
+
+[services.development]
+run = "pnpm --filter @workspace/agent-ui run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/agent-ui", "run", "build" ]
+publicDir = "artifacts/agent-ui/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21419"
+BASE_PATH = "/"
