@@ -59,6 +59,23 @@ router.post(
       res.json(response);
     } catch (err: unknown) {
       req.log.error({ err }, "Agent error");
+
+      // Groq rate limit — surface a helpful message
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "status" in err &&
+        (err as { status: number }).status === 429
+      ) {
+        const raw = (err as { message?: string }).message ?? "";
+        const waitMatch = raw.match(/Please try again in ([^.]+)\./);
+        const waitMsg = waitMatch ? ` Please wait ${waitMatch[1]} and try again.` : " Please try again shortly.";
+        res.status(429).json({
+          error: `Groq rate limit reached (100k tokens/day on free tier).${waitMsg} You can upgrade at console.groq.com/settings/billing.`,
+        });
+        return;
+      }
+
       res.status(500).json({ error: "Agent processing failed. Please try again." });
     }
   }
